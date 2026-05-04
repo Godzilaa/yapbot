@@ -6,16 +6,24 @@ import {
 export function buildCommands(): RESTPostAPIChatInputApplicationCommandsJSONBody[] {
   const meeting = new SlashCommandBuilder()
     .setName("meeting")
-    .setDescription("Ingest or summarize meeting memory.")
+    .setDescription("Manage meeting memory.")
     .addSubcommand((command) =>
       command
         .setName("start")
-        .setDescription("Start collecting meeting messages in this channel.")
+        .setDescription("Start a new meeting session.")
         .addStringOption((option) =>
           option.setName("title").setDescription("Meeting title.").setRequired(true)
         )
         .addStringOption((option) =>
           option.setName("project").setDescription("Project name.").setRequired(false)
+        )
+    )
+    .addSubcommand((command) =>
+      command
+        .setName("note")
+        .setDescription("Add a note or transcript excerpt to the active meeting.")
+        .addStringOption((option) =>
+          option.setName("text").setDescription("Text to add to meeting transcript.").setRequired(true)
         )
     )
     .addSubcommand((command) =>
@@ -26,7 +34,7 @@ export function buildCommands(): RESTPostAPIChatInputApplicationCommandsJSONBody
     .addSubcommand((command) =>
       command
         .setName("ingest")
-        .setDescription("Ingest a meeting transcript into Neo4j memory.")
+        .setDescription("Ingest a standalone meeting transcript into Neo4j memory.")
         .addStringOption((option) =>
           option.setName("title").setDescription("Meeting title.").setRequired(true)
         )
@@ -34,11 +42,27 @@ export function buildCommands(): RESTPostAPIChatInputApplicationCommandsJSONBody
           option.setName("project").setDescription("Project name.").setRequired(false)
         )
         .addStringOption((option) =>
-          option.setName("transcript").setDescription("Transcript text for small meetings.").setRequired(false)
+          option.setName("transcript").setDescription("Transcript text.").setRequired(false)
         )
         .addAttachmentOption((option) =>
           option.setName("file").setDescription("Transcript text file.").setRequired(false)
         )
+    )
+    .addSubcommand((command) =>
+      command
+        .setName("voice-start")
+        .setDescription("Join your voice channel and start recording meeting audio.")
+        .addStringOption((option) =>
+          option.setName("title").setDescription("Meeting title.").setRequired(true)
+        )
+        .addStringOption((option) =>
+          option.setName("project").setDescription("Project name.").setRequired(false)
+        )
+    )
+    .addSubcommand((command) =>
+      command
+        .setName("voice-end")
+        .setDescription("Stop recording, transcribe audio, and ingest meeting to Neo4j.")
     );
 
   const tasks = new SlashCommandBuilder()
@@ -103,5 +127,13 @@ export function buildCommands(): RESTPostAPIChatInputApplicationCommandsJSONBody
         )
     );
 
-  return [meeting, tasks, decisions, missed, task].map((command) => command.toJSON());
+  const help = new SlashCommandBuilder()
+    .setName("help")
+    .setDescription("List available bot commands and usage.");
+
+  const summary = new SlashCommandBuilder()
+    .setName("summary")
+    .setDescription("Show the latest meeting summary for this server.");
+
+  return [meeting, tasks, decisions, missed, task, summary, help].map((command) => command.toJSON());
 }

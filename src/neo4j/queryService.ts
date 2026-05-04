@@ -90,6 +90,18 @@ export class QueryService {
     }));
   }
 
+  async getLatestMeetingSummary(discordGuildId: string): Promise<MeetingSummary | null> {
+    const meetings = await this.read(`
+      MATCH (meeting:Meeting)
+      WHERE meeting.discordGuildId = $discordGuildId
+      RETURN meeting
+      ORDER BY meeting.startedAt DESC
+      LIMIT 1
+    `, { discordGuildId }, (record) => mapMeeting(record.get("meeting").properties));
+
+    return meetings[0] ?? null;
+  }
+
   private async read<T>(
     cypher: string,
     params: Record<string, unknown>,

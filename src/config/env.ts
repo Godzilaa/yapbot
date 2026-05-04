@@ -11,10 +11,14 @@ const envSchema = z.object({
   NEO4J_DATABASE: z.string().default("neo4j"),
   TRANSCRIPT_STORAGE_PATH: z.string().default("./transcripts"),
   LOW_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.7),
-  LLM_PROVIDER: z.enum(["stub", "openai-compatible"]).default("stub"),
+  DEBUG_MEETING_CAPTURE: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
+  LLM_PROVIDER: z.enum(["stub", "openai-compatible", "groq"]).default("stub"),
   LLM_API_BASE_URL: z.string().url().default("https://api.openai.com/v1"),
   LLM_API_KEY: z.string().optional(),
   LLM_MODEL: z.string().optional(),
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_MODEL: z.string().default("openai/gpt-oss-120b"),
+  GROQ_REASONING_EFFORT: z.enum(["low", "medium", "high"]).default("medium"),
   LLM_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.1),
   LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(60000)
 });
@@ -34,11 +38,15 @@ export function requireDiscordConfig(config: AppConfig): asserts config is AppCo
   }
 }
 
-export function requireLlmConfig(config: AppConfig): asserts config is AppConfig & {
-  LLM_API_KEY: string;
-  LLM_MODEL: string;
-} {
+export function requireLlmConfig(config: AppConfig): asserts config is AppConfig {
   if (config.LLM_PROVIDER === "stub") {
+    return;
+  }
+
+  if (config.LLM_PROVIDER === "groq") {
+    if (!config.GROQ_API_KEY && !config.LLM_API_KEY) {
+      throw new Error("GROQ_API_KEY (or LLM_API_KEY) is required when LLM_PROVIDER=groq.");
+    }
     return;
   }
 

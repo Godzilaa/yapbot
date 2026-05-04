@@ -6,6 +6,7 @@ import { QueryService } from "./neo4j/queryService.js";
 import { createTranscriptExtractor } from "./extraction/factory.js";
 import { TranscriptIngestionService } from "./ingestion/transcriptIngestionService.js";
 import { MeetingSessionManager } from "./meetings/meetingSessionManager.js";
+import { VoiceMeetingManager } from "./meetings/voiceMeetingManager.js";
 
 export interface AppServices {
   driver: Driver;
@@ -13,6 +14,7 @@ export interface AppServices {
   queries: QueryService;
   ingestion: TranscriptIngestionService;
   meetings: MeetingSessionManager;
+  voice: VoiceMeetingManager;
 }
 
 export function createAppServices(config: AppConfig): AppServices {
@@ -22,6 +24,7 @@ export function createAppServices(config: AppConfig): AppServices {
   const extractor = createTranscriptExtractor(config);
   const ingestion = new TranscriptIngestionService(extractor, graph, config.LOW_CONFIDENCE_THRESHOLD);
   const meetings = new MeetingSessionManager();
+  const voice = new VoiceMeetingManager(config);
 
-  return { driver, graph, queries, ingestion, meetings };
+  return { driver, graph, queries, ingestion, meetings, voice };
 }

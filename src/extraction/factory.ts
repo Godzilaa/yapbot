@@ -4,7 +4,7 @@ import { LlmExtractorStub } from "./llmExtractor.stub.js";
 import { OpenAiCompatibleExtractor } from "./openAiCompatibleExtractor.js";
 
 export function createTranscriptExtractor(config: AppConfig): TranscriptExtractor {
-  if (config.LLM_PROVIDER === "openai-compatible") {
+  if (config.LLM_PROVIDER === "openai-compatible" || config.LLM_PROVIDER === "groq") {
     return new OpenAiCompatibleExtractor(config);
   }
 

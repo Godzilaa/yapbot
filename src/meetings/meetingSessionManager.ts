@@ -29,6 +29,8 @@ export interface ClosedMeetingSession extends ActiveMeetingSession {
 export class MeetingSessionManager {
   private readonly sessions = new Map<string, ActiveMeetingSession>();
 
+  private readonly debugEnabled = process.env.DEBUG_MEETING_CAPTURE === "true";
+
   start(input: {
     title: string;
     project?: string | null;
@@ -58,6 +60,11 @@ export class MeetingSessionManager {
     };
 
     this.sessions.set(key, session);
+
+    if (this.debugEnabled) {
+      console.log(`[meeting-debug] started meeting=${session.id} key=${key} title=${session.title}`);
+    }
+
     return session;
   }
 
@@ -80,6 +87,11 @@ export class MeetingSessionManager {
       content: input.content.trim(),
       createdAt: input.createdAt ?? new Date().toISOString()
     });
+
+    if (this.debugEnabled) {
+      console.log(`[meeting-debug] stored message key=${sessionKey(input.guildId, input.channelId)} count=${session.messages.length}`);
+    }
+
     return true;
   }
 
@@ -91,6 +103,11 @@ export class MeetingSessionManager {
     }
 
     this.sessions.delete(key);
+
+    if (this.debugEnabled) {
+      console.log(`[meeting-debug] ended meeting=${session.id} key=${key} messageCount=${session.messages.length}`);
+    }
+
     return {
       ...session,
       endedAt: input.endedAt ?? new Date().toISOString(),

@@ -8,7 +8,7 @@ export async function startDiscordBot(config: AppConfig, services: AppServices):
   requireDiscordConfig(config);
 
   const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages]
   });
 
   client.once(Events.ClientReady, (readyClient) => {
@@ -31,21 +31,6 @@ export async function startDiscordBot(config: AppConfig, services: AppServices):
         await interaction.reply({ content: `Command failed: ${message}`, ephemeral: true });
       }
     }
-  });
-
-  client.on(Events.MessageCreate, (message) => {
-    if (message.author.bot || !message.guildId) {
-      return;
-    }
-
-    services.meetings.appendMessage({
-      guildId: message.guildId,
-      channelId: message.channelId,
-      authorId: message.author.id,
-      authorName: message.member?.displayName ?? message.author.displayName,
-      content: message.content,
-      createdAt: message.createdAt.toISOString()
-    });
   });
 
   await client.login(config.DISCORD_TOKEN);
