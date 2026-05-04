@@ -1,0 +1,101 @@
+{
+  "meeting": {
+    "id": "meeting_backend_sync_2026_05_04",
+    "title": "Backend sync",
+    "startedAt": "2026-05-04T10:00:00.000Z",
+    "endedAt": "2026-05-04T10:45:00.000Z",
+    "project": "AI Project Manager Bot",
+    "summary": "The team agreed to use Neo4j as structured memory and start with transcript ingestion before voice capture.",
+    "transcriptRef": "samples/transcripts/backend-sync.txt"
+  },
+  "attendees": [
+    {
+      "discordId": "123",
+      "displayName": "Pratik",
+      "role": "Backend",
+      "team": "Dev",
+      "interests": ["Neo4j", "Infrastructure"]
+    },
+    {
+      "discordId": "456",
+      "displayName": "Asha",
+      "role": "PM",
+      "team": "Product",
+      "interests": ["Planning", "Summaries"]
+    }
+  ],
+  "missedUsers": [
+    {
+      "discordId": "789",
+      "displayName": "Rohan",
+      "role": "Frontend",
+      "team": "Dev",
+      "interests": ["Frontend", "Design"]
+    }
+  ],
+  "topics": [
+    { "name": "Neo4j memory model" },
+    { "name": "Transcript ingestion" }
+  ],
+  "tasks": [
+    {
+      "title": "Create Neo4j schema migration",
+      "description": "Add constraints and indexes for users, meetings, tasks, decisions, projects, topics, interests, and task updates.",
+      "assignee": {
+        "discordId": "123",
+        "displayName": "Pratik"
+      },
+      "project": "AI Project Manager Bot",
+      "topic": "Neo4j memory model",
+      "status": "open",
+      "priority": "high",
+      "dueAt": null,
+      "confidence": 0.86,
+      "sourceText": "Pratik will create the Neo4j schema migration."
+    },
+    {
+      "title": "Draft missed-meeting summary format",
+      "description": "Define the first version of the personalized missed-meeting summary.",
+      "assignee": {
+        "discordId": "456",
+        "displayName": "Asha"
+      },
+      "project": "AI Project Manager Bot",
+      "topic": "Transcript ingestion",
+      "status": "open",
+      "priority": "normal",
+      "dueAt": null,
+      "confidence": 0.62,
+      "sourceText": "Maybe Asha can draft what missed summaries should look like."
+    }
+  ],
+  "decisions": [
+    {
+      "title": "Use Neo4j for structured memory",
+      "description": "Raw transcripts stay outside Neo4j; Neo4j stores durable meeting meaning.",
+      "rationale": "Graph relationships make user, team, task, decision, and meeting queries direct.",
+      "status": "accepted",
+      "affects": {
+        "teams": ["Dev"],
+        "projects": ["AI Project Manager Bot"],
+        "tasks": []
+      },
+      "confidence": 0.91,
+      "sourceText": "Neo4j should store structured memory, not raw logs."
+    }
+  ],
+  "risks": [
+    {
+      "title": "Voice capture may delay MVP",
+      "description": "Discord voice capture and transcription can be more complex than text ingestion.",
+      "severity": "medium",
+      "affects": {
+        "teams": ["Dev"],
+        "projects": ["AI Project Manager Bot"],
+        "tasks": []
+      },
+      "confidence": 0.78,
+      "sourceText": "We should start with text transcripts before tackling voice capture."
+    }
+  ]
+}
