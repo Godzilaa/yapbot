@@ -10,7 +10,7 @@ export class LlmExtractorStub implements TranscriptExtractor {
         endedAt: input.endedAt ?? null,
         project: input.project ?? null,
         transcriptRef: input.transcriptRef ?? null,
-        summary: "LLM extraction is not wired yet. Replace LlmExtractorStub with a provider-backed extractor."
+        summary: "Stub extraction is enabled. Set LLM_PROVIDER=openai-compatible to use the real LLM extraction layer."
       },
       attendees: [],
       missedUsers: [],

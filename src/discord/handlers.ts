@@ -33,7 +33,59 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, se
 }
 
 async function handleMeeting(interaction: ChatInputCommandInteraction, services: AppServices): Promise<void> {
-  if (interaction.options.getSubcommand() !== "ingest") {
+  const subcommand = interaction.options.getSubcommand();
+
+  if (subcommand === "start") {
+    const title = interaction.options.getString("title", true);
+    const project = interaction.options.getString("project", false);
+    const session = services.meetings.start({
+      title,
+      project,
+      guildId: interaction.guildId ?? "dm",
+      channelId: interaction.channelId,
+      startedBy: {
+        discordId: interaction.user.id,
+        displayName: interaction.user.displayName
+      }
+    });
+
+    await interaction.reply({
+      content: `Meeting started: ${session.title}\nmeeting id: ${session.id}\nI will collect text messages in this channel until /meeting end.`,
+      ephemeral: false
+    });
+    return;
+  }
+
+  if (subcommand === "end") {
+    await interaction.deferReply({ ephemeral: false });
+    const session = services.meetings.end({
+      guildId: interaction.guildId ?? "dm",
+      channelId: interaction.channelId
+    });
+
+    if (session.transcript.trim().length === 0) {
+      await interaction.editReply(`Meeting ended: ${session.title}\nNo messages were captured, so nothing was written to Neo4j.`);
+      return;
+    }
+
+    const result = await services.ingestion.ingest({
+      transcript: session.transcript,
+      title: session.title,
+      startedAt: session.startedAt,
+      endedAt: session.endedAt,
+      discordGuildId: session.guildId,
+      discordChannelId: session.channelId,
+      project: session.project ?? null,
+      transcriptRef: `discord-session:${session.id}`
+    });
+
+    await interaction.editReply(
+      `Meeting ended and ingested.\nmeeting id: ${result.meetingId}\nmessages: ${session.messages.length}\ntasks: ${result.taskCount}\ndecisions: ${result.decisionCount}\nrisks: ${result.riskCount}\npending review: ${result.pendingReviewCount}`
+    );
+    return;
+  }
+
+  if (subcommand !== "ingest") {
     await interaction.reply({ content: "Unknown meeting command.", ephemeral: true });
     return;
   }

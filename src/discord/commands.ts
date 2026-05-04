@@ -9,6 +9,22 @@ export function buildCommands(): RESTPostAPIChatInputApplicationCommandsJSONBody
     .setDescription("Ingest or summarize meeting memory.")
     .addSubcommand((command) =>
       command
+        .setName("start")
+        .setDescription("Start collecting meeting messages in this channel.")
+        .addStringOption((option) =>
+          option.setName("title").setDescription("Meeting title.").setRequired(true)
+        )
+        .addStringOption((option) =>
+          option.setName("project").setDescription("Project name.").setRequired(false)
+        )
+    )
+    .addSubcommand((command) =>
+      command
+        .setName("end")
+        .setDescription("End the active meeting and extract structured memory.")
+    )
+    .addSubcommand((command) =>
+      command
         .setName("ingest")
         .setDescription("Ingest a meeting transcript into Neo4j memory.")
         .addStringOption((option) =>
