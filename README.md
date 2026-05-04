@@ -1,6 +1,4 @@
-# Discord Neo4j Project Manager Bot
-
-This scaffold follows the Neo4j memory design in `docs/superpowers/specs/2026-05-04-discord-bot-neo4j-memory-design.md`.
+# Discord Project Manager Bot
 
 Neo4j stores structured meeting meaning: users, teams, interests, meetings, tasks, decisions, risks, topics, task updates, and relationships. Raw audio and full transcripts stay outside the graph.
 
