@@ -28,54 +28,63 @@ export class QueryService {
     private readonly database: string
   ) {}
 
-  async getTasksForUser(discordId: string): Promise<TaskSummary[]> {
+  async getTasksForUser(discordGuildId: string, discordId: string): Promise<TaskSummary[]> {
     return this.read(`
       MATCH (task:Task)-[:ASSIGNED_TO]->(user:User)
-      WHERE user.discordId = $discordId
+      WHERE user.discordGuildId = $discordGuildId
+        AND task.discordGuildId = $discordGuildId
+        AND user.discordId = $discordId
         AND task.status <> 'done'
       RETURN task
       ORDER BY task.dueAt ASC
-    `, { discordId }, (record) => mapTask(record.get("task").properties));
+    `, { discordGuildId, discordId }, (record) => mapTask(record.get("task").properties));
   }
 
-  async getTasksByDisplayName(name: string): Promise<TaskSummary[]> {
+  async getTasksByDisplayName(discordGuildId: string, name: string): Promise<TaskSummary[]> {
     return this.read(`
       MATCH (task:Task)-[:ASSIGNED_TO]->(user:User)
-      WHERE toLower(user.displayName) = toLower($name)
+      WHERE user.discordGuildId = $discordGuildId
+        AND task.discordGuildId = $discordGuildId
+        AND toLower(user.displayName) = toLower($name)
         AND task.status <> 'done'
       RETURN task
       ORDER BY task.dueAt ASC
-    `, { name }, (record) => mapTask(record.get("task").properties));
+    `, { discordGuildId, name }, (record) => mapTask(record.get("task").properties));
   }
 
-  async getDecisionsForTeam(teamName: string): Promise<DecisionSummary[]> {
+  async getDecisionsForTeam(discordGuildId: string, teamName: string): Promise<DecisionSummary[]> {
     return this.read(`
       MATCH (decision:Decision)-[:AFFECTS]->(team:Team)
-      WHERE toLower(team.name) = toLower($teamName)
+      WHERE decision.discordGuildId = $discordGuildId
+        AND team.discordGuildId = $discordGuildId
+        AND toLower(team.name) = toLower($teamName)
       RETURN decision
       ORDER BY decision.createdAt DESC
-    `, { teamName }, (record) => mapDecision(record.get("decision").properties));
+    `, { discordGuildId, teamName }, (record) => mapDecision(record.get("decision").properties));
   }
 
-  async getMissedMeetings(discordId: string, start: string, end: string): Promise<MeetingSummary[]> {
+  async getMissedMeetings(discordGuildId: string, discordId: string, start: string, end: string): Promise<MeetingSummary[]> {
     return this.read(`
-      MATCH (user:User {discordId: $discordId})
+      MATCH (user:User {discordGuildId: $discordGuildId, discordId: $discordId})
       MATCH (meeting:Meeting)
       WHERE meeting.startedAt >= datetime($start)
         AND meeting.startedAt < datetime($end)
+        AND meeting.discordGuildId = $discordGuildId
         AND NOT (user)-[:ATTENDED]->(meeting)
       RETURN meeting
       ORDER BY meeting.startedAt ASC
-    `, { discordId, start, end }, (record) => mapMeeting(record.get("meeting").properties));
+    `, { discordGuildId, discordId, start, end }, (record) => mapMeeting(record.get("meeting").properties));
   }
 
-  async getOpenBlockers(): Promise<Array<{ blocked: TaskSummary; blocker: TaskSummary }>> {
+  async getOpenBlockers(discordGuildId: string): Promise<Array<{ blocked: TaskSummary; blocker: TaskSummary }>> {
     return this.read(`
       MATCH (blocked:Task)-[:BLOCKED_BY]->(blocker:Task)
-      WHERE blocked.status <> 'done'
+      WHERE blocked.discordGuildId = $discordGuildId
+        AND blocker.discordGuildId = $discordGuildId
+        AND blocked.status <> 'done'
       RETURN blocked, blocker
       ORDER BY blocked.dueAt ASC
-    `, {}, (record) => ({
+    `, { discordGuildId }, (record) => ({
       blocked: mapTask(record.get("blocked").properties),
       blocker: mapTask(record.get("blocker").properties)
     }));

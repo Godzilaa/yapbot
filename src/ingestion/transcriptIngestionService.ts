@@ -36,15 +36,15 @@ export class TranscriptIngestionService {
       }, tx);
 
       if (extraction.meeting.project) {
-        await this.graph.upsertProject(extraction.meeting.project, tx);
-        await this.graph.linkMeetingProject(meetingId, extraction.meeting.project, tx);
+        await this.graph.upsertProject(input.discordGuildId, extraction.meeting.project, tx);
+        await this.graph.linkMeetingProject(input.discordGuildId, meetingId, extraction.meeting.project, tx);
       }
 
-      await this.writeUsersAndAttendance(meetingId, extraction, tx);
-      await this.writeTopics(meetingId, extraction, tx);
-      await this.writeTasks(meetingId, extraction, tx);
-      await this.writeDecisions(meetingId, extraction, tx);
-      await this.writeRisks(meetingId, extraction, tx);
+      await this.writeUsersAndAttendance(input.discordGuildId, meetingId, extraction, tx);
+      await this.writeTopics(input.discordGuildId, meetingId, extraction, tx);
+      await this.writeTasks(input.discordGuildId, meetingId, extraction, tx);
+      await this.writeDecisions(input.discordGuildId, meetingId, extraction, tx);
+      await this.writeRisks(input.discordGuildId, meetingId, extraction, tx);
     });
 
     return {
@@ -59,47 +59,54 @@ export class TranscriptIngestionService {
     };
   }
 
-  private async writeUsersAndAttendance(meetingId: string, extraction: Extraction, tx: GraphTx): Promise<void> {
+  private async writeUsersAndAttendance(
+    discordGuildId: string,
+    meetingId: string,
+    extraction: Extraction,
+    tx: GraphTx
+  ): Promise<void> {
     for (const attendee of extraction.attendees) {
-      await this.writeUserContext(attendee, tx);
-      await this.graph.attachAttendee(meetingId, userKey(attendee), tx);
+      await this.writeUserContext(discordGuildId, attendee, tx);
+      await this.graph.attachAttendee(discordGuildId, meetingId, userKey(attendee), tx);
     }
 
     for (const missedUser of extraction.missedUsers) {
-      await this.writeUserContext(missedUser, tx);
-      await this.graph.attachMissedUser(meetingId, userKey(missedUser), tx);
+      await this.writeUserContext(discordGuildId, missedUser, tx);
+      await this.graph.attachMissedUser(discordGuildId, meetingId, userKey(missedUser), tx);
     }
   }
 
-  private async writeUserContext(user: ExtractedUser, tx: GraphTx): Promise<void> {
+  private async writeUserContext(discordGuildId: string, user: ExtractedUser, tx: GraphTx): Promise<void> {
     await this.graph.upsertUser({
+      discordGuildId,
       discordId: user.discordId,
       displayName: user.displayName,
       role: user.role
     }, tx);
 
     if (user.team) {
-      await this.graph.upsertTeam(user.team, tx);
-      await this.graph.linkUserTeam(userKey(user), user.team, tx);
+      await this.graph.upsertTeam(discordGuildId, user.team, tx);
+      await this.graph.linkUserTeam(discordGuildId, userKey(user), user.team, tx);
     }
 
     for (const interest of user.interests) {
-      await this.graph.upsertInterest(interest, tx);
-      await this.graph.linkUserInterest(userKey(user), interest, tx);
+      await this.graph.upsertInterest(discordGuildId, interest, tx);
+      await this.graph.linkUserInterest(discordGuildId, userKey(user), interest, tx);
     }
   }
 
-  private async writeTopics(meetingId: string, extraction: Extraction, tx: GraphTx): Promise<void> {
+  private async writeTopics(discordGuildId: string, meetingId: string, extraction: Extraction, tx: GraphTx): Promise<void> {
     for (const topic of extraction.topics) {
-      await this.graph.upsertTopic(topic.name, tx);
-      await this.graph.linkMeetingTopic(meetingId, topic.name, tx);
+      await this.graph.upsertTopic(discordGuildId, topic.name, tx);
+      await this.graph.linkMeetingTopic(discordGuildId, meetingId, topic.name, tx);
     }
   }
 
-  private async writeTasks(meetingId: string, extraction: Extraction, tx: GraphTx): Promise<void> {
+  private async writeTasks(discordGuildId: string, meetingId: string, extraction: Extraction, tx: GraphTx): Promise<void> {
     for (const task of extraction.tasks) {
       const taskId = stableId("task", [meetingId, task.title, task.sourceText]);
       await this.graph.createTask({
+        discordGuildId,
         id: taskId,
         title: normalizeName(task.title),
         description: task.description,
@@ -109,32 +116,34 @@ export class TranscriptIngestionService {
         confidence: task.confidence,
         sourceText: task.sourceText ?? null
       }, tx);
-      await this.graph.linkMeetingOutput(meetingId, "Task", taskId, tx);
+      await this.graph.linkMeetingOutput(discordGuildId, meetingId, "Task", taskId, tx);
 
       if (task.assignee) {
         await this.graph.upsertUser({
+          discordGuildId,
           discordId: task.assignee.discordId,
           displayName: task.assignee.displayName
         }, tx);
-        await this.graph.assignTask(taskId, userKey(task.assignee), tx);
+        await this.graph.assignTask(discordGuildId, taskId, userKey(task.assignee), tx);
       }
 
       if (task.project) {
-        await this.graph.upsertProject(task.project, tx);
-        await this.graph.linkTaskToProject(taskId, task.project, tx);
+        await this.graph.upsertProject(discordGuildId, task.project, tx);
+        await this.graph.linkTaskToProject(discordGuildId, taskId, task.project, tx);
       }
 
       if (task.topic) {
-        await this.graph.upsertTopic(task.topic, tx);
-        await this.graph.linkTaskTopic(taskId, task.topic, tx);
+        await this.graph.upsertTopic(discordGuildId, task.topic, tx);
+        await this.graph.linkTaskTopic(discordGuildId, taskId, task.topic, tx);
       }
     }
   }
 
-  private async writeDecisions(meetingId: string, extraction: Extraction, tx: GraphTx): Promise<void> {
+  private async writeDecisions(discordGuildId: string, meetingId: string, extraction: Extraction, tx: GraphTx): Promise<void> {
     for (const decision of extraction.decisions) {
       const decisionId = stableId("decision", [meetingId, decision.title, decision.sourceText]);
       await this.graph.createDecision({
+        discordGuildId,
         id: decisionId,
         title: normalizeName(decision.title),
         description: decision.description,
@@ -143,24 +152,25 @@ export class TranscriptIngestionService {
         confidence: decision.confidence,
         sourceText: decision.sourceText ?? null
       }, tx);
-      await this.graph.linkMeetingOutput(meetingId, "Decision", decisionId, tx);
+      await this.graph.linkMeetingOutput(discordGuildId, meetingId, "Decision", decisionId, tx);
 
       for (const team of decision.affects.teams) {
-        await this.graph.upsertTeam(team, tx);
-        await this.graph.linkDecisionImpact(decisionId, "Team", team, tx);
+        await this.graph.upsertTeam(discordGuildId, team, tx);
+        await this.graph.linkDecisionImpact(discordGuildId, decisionId, "Team", team, tx);
       }
 
       for (const project of decision.affects.projects) {
-        await this.graph.upsertProject(project, tx);
-        await this.graph.linkDecisionImpact(decisionId, "Project", project, tx);
+        await this.graph.upsertProject(discordGuildId, project, tx);
+        await this.graph.linkDecisionImpact(discordGuildId, decisionId, "Project", project, tx);
       }
     }
   }
 
-  private async writeRisks(meetingId: string, extraction: Extraction, tx: GraphTx): Promise<void> {
+  private async writeRisks(discordGuildId: string, meetingId: string, extraction: Extraction, tx: GraphTx): Promise<void> {
     for (const risk of extraction.risks) {
       const riskId = stableId("risk", [meetingId, risk.title, risk.sourceText]);
       await this.graph.createRisk({
+        discordGuildId,
         id: riskId,
         title: normalizeName(risk.title),
         description: risk.description,
@@ -168,16 +178,16 @@ export class TranscriptIngestionService {
         confidence: risk.confidence,
         sourceText: risk.sourceText ?? null
       }, tx);
-      await this.graph.linkMeetingOutput(meetingId, "Risk", riskId, tx);
+      await this.graph.linkMeetingOutput(discordGuildId, meetingId, "Risk", riskId, tx);
 
       for (const team of risk.affects.teams) {
-        await this.graph.upsertTeam(team, tx);
-        await this.graph.linkRiskImpact(riskId, "Team", team, tx);
+        await this.graph.upsertTeam(discordGuildId, team, tx);
+        await this.graph.linkRiskImpact(discordGuildId, riskId, "Team", team, tx);
       }
 
       for (const project of risk.affects.projects) {
-        await this.graph.upsertProject(project, tx);
-        await this.graph.linkRiskImpact(riskId, "Project", project, tx);
+        await this.graph.upsertProject(discordGuildId, project, tx);
+        await this.graph.linkRiskImpact(discordGuildId, riskId, "Project", project, tx);
       }
     }
   }

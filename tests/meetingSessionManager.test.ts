@@ -41,6 +41,7 @@ describe("MeetingSessionManager", () => {
     const manager = new MeetingSessionManager();
     manager.start({
       title: "First",
+      project: null,
       guildId: "guild-1",
       channelId: "channel-1",
       startedBy: {
@@ -51,6 +52,7 @@ describe("MeetingSessionManager", () => {
 
     expect(() => manager.start({
       title: "Second",
+      project: null,
       guildId: "guild-1",
       channelId: "channel-1",
       startedBy: {

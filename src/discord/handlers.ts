@@ -115,14 +115,14 @@ async function handleMeeting(interaction: ChatInputCommandInteraction, services:
 async function handleTasks(interaction: ChatInputCommandInteraction, services: AppServices): Promise<void> {
   const subcommand = interaction.options.getSubcommand();
   if (subcommand === "mine") {
-    const tasks = await services.queries.getTasksForUser(interaction.user.id);
+    const tasks = await services.queries.getTasksForUser(interaction.guildId ?? "dm", interaction.user.id);
     await interaction.reply({ content: truncateDiscordMessage(formatTasks(tasks)), ephemeral: true });
     return;
   }
 
   if (subcommand === "user") {
     const user = interaction.options.getUser("user", true);
-    const tasks = await services.queries.getTasksForUser(user.id);
+    const tasks = await services.queries.getTasksForUser(interaction.guildId ?? "dm", user.id);
     await interaction.reply({ content: truncateDiscordMessage(formatTasks(tasks)), ephemeral: true });
     return;
   }
@@ -132,7 +132,7 @@ async function handleTasks(interaction: ChatInputCommandInteraction, services: A
 
 async function handleDecisions(interaction: ChatInputCommandInteraction, services: AppServices): Promise<void> {
   const teamName = interaction.options.getString("team", true);
-  const decisions = await services.queries.getDecisionsForTeam(teamName);
+  const decisions = await services.queries.getDecisionsForTeam(interaction.guildId ?? "dm", teamName);
   await interaction.reply({ content: truncateDiscordMessage(formatDecisions(decisions)), ephemeral: true });
 }
 
@@ -143,7 +143,7 @@ async function handleMissed(interaction: ChatInputCommandInteraction, services: 
   }
 
   const { start, end } = yesterdayUtcRange();
-  const meetings = await services.queries.getMissedMeetings(interaction.user.id, start, end);
+  const meetings = await services.queries.getMissedMeetings(interaction.guildId ?? "dm", interaction.user.id, start, end);
   await interaction.reply({ content: truncateDiscordMessage(formatMeetings(meetings)), ephemeral: true });
 }
 
@@ -158,10 +158,12 @@ async function handleTask(interaction: ChatInputCommandInteraction, services: Ap
   const note = interaction.options.getString("note", false) ?? undefined;
 
   await services.graph.upsertUser({
+    discordGuildId: interaction.guildId ?? "dm",
     discordId: interaction.user.id,
     displayName: interaction.user.displayName
   });
   await services.graph.createTaskUpdate(taskId, {
+    discordGuildId: interaction.guildId ?? "dm",
     status,
     note,
     actorDiscordId: interaction.user.id
