@@ -22,9 +22,9 @@ export const riskSeveritySchema = z.enum(["low", "medium", "high"]);
 export const extractedUserSchema = z.object({
   discordId: z.string().optional(),
   displayName: z.string().min(1),
-  role: z.string().optional(),
-  team: z.string().optional(),
-  interests: z.array(z.string().min(1)).default([])
+  role: z.string().nullish(),
+  team: z.string().nullish(),
+  interests: z.array(z.string().min(1)).nullish().default([])
 });
 
 export const extractionSchema = z.object({

@@ -81,15 +81,16 @@ export class TranscriptIngestionService {
       discordGuildId,
       discordId: user.discordId,
       displayName: user.displayName,
-      role: user.role
+      role: user.role ?? undefined
     }, tx);
 
-    if (user.team) {
-      await this.graph.upsertTeam(discordGuildId, user.team, tx);
-      await this.graph.linkUserTeam(discordGuildId, userKey(user), user.team, tx);
+    const team = user.team ?? undefined;
+    if (team) {
+      await this.graph.upsertTeam(discordGuildId, team, tx);
+      await this.graph.linkUserTeam(discordGuildId, userKey(user), team, tx);
     }
 
-    for (const interest of user.interests) {
+    for (const interest of user.interests ?? []) {
       await this.graph.upsertInterest(discordGuildId, interest, tx);
       await this.graph.linkUserInterest(discordGuildId, userKey(user), interest, tx);
     }

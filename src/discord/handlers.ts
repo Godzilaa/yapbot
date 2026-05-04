@@ -1,4 +1,4 @@
-import type { ChatInputCommandInteraction } from "discord.js";
+import { MessageFlags, type ChatInputCommandInteraction } from "discord.js";
 import type { AppServices } from "../app.js";
 import { taskStatusSchema } from "../domain/extraction.js";
 import { formatDecisions, formatMeetings, formatTasks, truncateDiscordMessage } from "./formatters.js";
@@ -39,13 +39,15 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, se
     return;
   }
 
-  await interaction.reply({ content: "Unknown command.", ephemeral: true });
+  await interaction.reply({ content: "Unknown command.", flags: MessageFlags.Ephemeral });
 }
 
 async function handleMeeting(interaction: ChatInputCommandInteraction, services: AppServices): Promise<void> {
   const subcommand = interaction.options.getSubcommand();
 
   if (subcommand === "start") {
+    await interaction.deferReply();
+
     const title = interaction.options.getString("title", true);
     const project = interaction.options.getString("project", false);
     const session = services.meetings.start({
@@ -59,10 +61,9 @@ async function handleMeeting(interaction: ChatInputCommandInteraction, services:
       }
     });
 
-    await interaction.reply({
-      content: `Meeting started: ${session.title}\nmeeting id: ${session.id}\nUse /meeting note to add updates during the meeting, then /meeting end to ingest.`,
-      ephemeral: false
-    });
+    await interaction.editReply(
+      `Meeting started: ${session.title}\nmeeting id: ${session.id}\nUse /meeting note to add updates during the meeting, then /meeting end to ingest.`
+    );
     return;
   }
 
@@ -79,20 +80,19 @@ async function handleMeeting(interaction: ChatInputCommandInteraction, services:
     if (!captured) {
       await interaction.reply({
         content: "No active meeting in this channel. Start one with /meeting start.",
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
 
     await interaction.reply({
-      content: "📝 Note added to meeting transcript.",
-      ephemeral: true
+      content: `📝 Note added: ${truncateDiscordMessage(text)}`
     });
     return;
   }
 
   if (subcommand === "end") {
-    await interaction.deferReply({ ephemeral: false });
+    await interaction.deferReply();
     const session = services.meetings.end({
       guildId: interaction.guildId ?? "dm",
       channelId: interaction.channelId
@@ -123,7 +123,7 @@ async function handleMeeting(interaction: ChatInputCommandInteraction, services:
   }
 
   if (subcommand === "ingest") {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const transcript = await readTranscript(interaction);
     const title = interaction.options.getString("title", true);
     const project = interaction.options.getString("project", false);
@@ -147,7 +147,7 @@ async function handleMeeting(interaction: ChatInputCommandInteraction, services:
   }
 
   if (subcommand === "voice-start") {
-    await interaction.deferReply({ ephemeral: false });
+    await interaction.deferReply();
 
     const guildId = interaction.guildId;
     if (!guildId) {
@@ -155,25 +155,13 @@ async function handleMeeting(interaction: ChatInputCommandInteraction, services:
       return;
     }
 
-    let guild = interaction.guild;
+    const guild = interaction.guild ?? interaction.client.guilds.cache.get(guildId);
     if (!guild) {
-      try {
-        guild = await interaction.client.guilds.fetch(guildId);
-      } catch (error) {
-        console.error("Error fetching guild:", error);
-        await interaction.editReply("Failed to access server information.");
-        return;
-      }
+      await interaction.editReply("Unable to access server data.");
+      return;
     }
 
-    let voiceChannel;
-    try {
-      const member = await guild.members.fetch(interaction.user.id);
-      voiceChannel = member.voice.channel;
-    } catch (error) {
-      console.error("Error fetching member voice state:", error);
-      voiceChannel = null;
-    }
+    const voiceChannel = guild.voiceStates.cache.get(interaction.user.id)?.channel;
 
     if (!voiceChannel) {
       await interaction.editReply("You must be in a voice channel to use this command.");
@@ -181,12 +169,11 @@ async function handleMeeting(interaction: ChatInputCommandInteraction, services:
     }
 
     const title = interaction.options.getString("title", true);
-    const project = interaction.options.getString("project", false);
 
     try {
       const session = await services.voice.joinChannel({
         voiceChannel,
-        guildId: guild.id,
+        guildId,
         userId: interaction.user.id,
         displayName: interaction.user.displayName
       });
@@ -195,15 +182,17 @@ async function handleMeeting(interaction: ChatInputCommandInteraction, services:
         `🎤 Voice recording started: ${title}\nvideo session id: ${session.sessionId}\nSpeak naturally, I'm recording. Use /meeting voice-end to stop and ingest.`
       );
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error("[voice] Error joining voice channel:", errorMsg);
       await interaction.editReply(
-        `Failed to join voice channel: ${error instanceof Error ? error.message : "Unknown error"}`
+        `Failed to join voice channel: ${errorMsg}`
       );
     }
     return;
   }
 
   if (subcommand === "voice-end") {
-    await interaction.deferReply({ ephemeral: false });
+    await interaction.deferReply();
 
     const guildId = interaction.guildId;
     if (!guildId) {
@@ -211,25 +200,13 @@ async function handleMeeting(interaction: ChatInputCommandInteraction, services:
       return;
     }
 
-    let guild = interaction.guild;
+    const guild = interaction.guild ?? interaction.client.guilds.cache.get(guildId);
     if (!guild) {
-      try {
-        guild = await interaction.client.guilds.fetch(guildId);
-      } catch (error) {
-        console.error("Error fetching guild:", error);
-        await interaction.editReply("Failed to access server information.");
-        return;
-      }
+      await interaction.editReply("Unable to access server data.");
+      return;
     }
 
-    let voiceChannel;
-    try {
-      const member = await guild.members.fetch(interaction.user.id);
-      voiceChannel = member.voice.channel;
-    } catch (error) {
-      console.error("Error fetching member voice state:", error);
-      voiceChannel = null;
-    }
+    const voiceChannel = guild.voiceStates.cache.get(interaction.user.id)?.channel;
 
     if (!voiceChannel) {
       await interaction.editReply("You must be in a voice channel to end recording.");
@@ -237,7 +214,7 @@ async function handleMeeting(interaction: ChatInputCommandInteraction, services:
     }
 
     try {
-      const audioBuffer = await services.voice.leaveChannel(guild.id, voiceChannel.id);
+      const audioBuffer = await services.voice.leaveChannel(guildId, voiceChannel.id);
 
       if (audioBuffer.length === 0) {
         await interaction.editReply("No audio was captured. Try speaking during the voice meeting.");
@@ -261,7 +238,7 @@ async function handleMeeting(interaction: ChatInputCommandInteraction, services:
         title: `Voice Meeting - ${voiceChannel.name}`,
         startedAt: now,
         endedAt: null,
-        discordGuildId: guild.id,
+        discordGuildId: guildId,
         discordChannelId: interaction.channelId,
         project: null,
         transcriptRef: `discord-voice:${voiceChannel.id}`
@@ -278,11 +255,11 @@ async function handleMeeting(interaction: ChatInputCommandInteraction, services:
   }
 
   if (subcommand !== "ingest") {
-    await interaction.reply({ content: "Unknown meeting command.", ephemeral: true });
+    await interaction.reply({ content: "Unknown meeting command.", flags: MessageFlags.Ephemeral });
     return;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   const transcript = await readTranscript(interaction);
   const title = interaction.options.getString("title", true);
   const project = interaction.options.getString("project", false);
@@ -308,40 +285,40 @@ async function handleTasks(interaction: ChatInputCommandInteraction, services: A
   const subcommand = interaction.options.getSubcommand();
   if (subcommand === "mine") {
     const tasks = await services.queries.getTasksForUser(interaction.guildId ?? "dm", interaction.user.id);
-    await interaction.reply({ content: truncateDiscordMessage(formatTasks(tasks)), ephemeral: true });
+    await interaction.reply({ content: truncateDiscordMessage(formatTasks(tasks)), flags: MessageFlags.Ephemeral });
     return;
   }
 
   if (subcommand === "user") {
     const user = interaction.options.getUser("user", true);
     const tasks = await services.queries.getTasksForUser(interaction.guildId ?? "dm", user.id);
-    await interaction.reply({ content: truncateDiscordMessage(formatTasks(tasks)), ephemeral: true });
+    await interaction.reply({ content: truncateDiscordMessage(formatTasks(tasks)), flags: MessageFlags.Ephemeral });
     return;
   }
 
-  await interaction.reply({ content: "Unknown tasks command.", ephemeral: true });
+  await interaction.reply({ content: "Unknown tasks command.", flags: MessageFlags.Ephemeral });
 }
 
 async function handleDecisions(interaction: ChatInputCommandInteraction, services: AppServices): Promise<void> {
   const teamName = interaction.options.getString("team", true);
   const decisions = await services.queries.getDecisionsForTeam(interaction.guildId ?? "dm", teamName);
-  await interaction.reply({ content: truncateDiscordMessage(formatDecisions(decisions)), ephemeral: true });
+  await interaction.reply({ content: truncateDiscordMessage(formatDecisions(decisions)), flags: MessageFlags.Ephemeral });
 }
 
 async function handleMissed(interaction: ChatInputCommandInteraction, services: AppServices): Promise<void> {
   if (interaction.options.getSubcommand() !== "yesterday") {
-    await interaction.reply({ content: "Unknown missed command.", ephemeral: true });
+    await interaction.reply({ content: "Unknown missed command.", flags: MessageFlags.Ephemeral });
     return;
   }
 
   const { start, end } = yesterdayUtcRange();
   const meetings = await services.queries.getMissedMeetings(interaction.guildId ?? "dm", interaction.user.id, start, end);
-  await interaction.reply({ content: truncateDiscordMessage(formatMeetings(meetings)), ephemeral: true });
+  await interaction.reply({ content: truncateDiscordMessage(formatMeetings(meetings)), flags: MessageFlags.Ephemeral });
 }
 
 async function handleTask(interaction: ChatInputCommandInteraction, services: AppServices): Promise<void> {
   if (interaction.options.getSubcommand() !== "update") {
-    await interaction.reply({ content: "Unknown task command.", ephemeral: true });
+    await interaction.reply({ content: "Unknown task command.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -361,7 +338,7 @@ async function handleTask(interaction: ChatInputCommandInteraction, services: Ap
     actorDiscordId: interaction.user.id
   });
 
-  await interaction.reply({ content: `Updated ${taskId} to ${status}.`, ephemeral: true });
+  await interaction.reply({ content: `Updated ${taskId} to ${status}.`, flags: MessageFlags.Ephemeral });
 }
 
 async function readTranscript(interaction: ChatInputCommandInteraction): Promise<string> {
@@ -416,13 +393,15 @@ async function handleHelp(interaction: ChatInputCommandInteraction): Promise<voi
     "All data is scoped per server and stored in Neo4j."
   ].join("\n");
 
-  await interaction.reply({ content: helpText, ephemeral: false });
+  await interaction.reply({ content: helpText });
 }
 
 async function handleSummary(interaction: ChatInputCommandInteraction, services: AppServices): Promise<void> {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
   const summary = await services.queries.getLatestMeetingSummary(interaction.guildId ?? "dm");
   if (!summary) {
-    await interaction.reply({ content: "No meetings found for this server yet.", ephemeral: true });
+    await interaction.editReply("No meetings found for this server yet.");
     return;
   }
 
@@ -434,5 +413,5 @@ async function handleSummary(interaction: ChatInputCommandInteraction, services:
     .filter(Boolean)
     .join("\n");
 
-  await interaction.reply({ content: truncateDiscordMessage(text), ephemeral: true });
+  await interaction.editReply(truncateDiscordMessage(text));
 }

@@ -1,4 +1,5 @@
 import { Client, Events, GatewayIntentBits } from "discord.js";
+import { MessageFlags } from "discord.js";
 import type { AppConfig } from "../config/env.js";
 import { requireDiscordConfig } from "../config/env.js";
 import type { AppServices } from "../app.js";
@@ -8,7 +9,12 @@ export async function startDiscordBot(config: AppConfig, services: AppServices):
   requireDiscordConfig(config);
 
   const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages]
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.GuildMembers,
+      GatewayIntentBits.GuildVoiceStates
+    ]
   });
 
   client.once(Events.ClientReady, (readyClient) => {
@@ -28,7 +34,7 @@ export async function startDiscordBot(config: AppConfig, services: AppServices):
       if (interaction.deferred || interaction.replied) {
         await interaction.editReply(`Command failed: ${message}`);
       } else {
-        await interaction.reply({ content: `Command failed: ${message}`, ephemeral: true });
+        await interaction.reply({ content: `Command failed: ${message}`, flags: MessageFlags.Ephemeral });
       }
     }
   });
